@@ -221,11 +221,24 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
   <div class="card" style="color:var(--muted2);font-size:12px;line-height:1.8"><strong style="color:var(--text)">Muscle &amp; Burn v2.1</strong><br>Firebase sync · Open Food Facts · Gram picker<br>73 kg → 80 kg · 5 days/week · 6–8 AM training</div>
 </div>
 
+<!-- MEALS -->
+<div id="page-meals" class="page">
+  <div class="ph"><div><div class="ey">Nutrition Plan</div><h1>My <span>Meals</span></h1></div></div>
+
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px" id="dayTypeTabs">
+    <button class="ptb active" onclick="setMealDay('training',this)">Training Day</button>
+    <button class="ptb" onclick="setMealDay('rest',this)">Rest Day</button>
+  </div>
+
+  <div id="mealPlanSlots"></div>
+</div>
+
 <div id="navbar">
   <button class="nav-btn active" onclick="showPage('nutrition',this)"><div class="nav-icon">🍽️</div><div class="nav-label">Nutrition</div></button>
   <button class="nav-btn" onclick="showPage('workout',this)"><div class="nav-icon">🏋️</div><div class="nav-label">Workout</div></button>
   <button class="nav-btn" onclick="showPage('analytics',this)"><div class="nav-icon">📊</div><div class="nav-label">Analytics</div></button>
   <button class="nav-btn" onclick="showPage('settings',this)"><div class="nav-icon">⚙️</div><div class="nav-label">Settings</div></button>
+  <button class="nav-btn" onclick="showPage('meals',this)"><div class="nav-icon">🥗</div><div class="nav-label">Meals</div></button>
 </div>
 <div id="toast"></div>
 
@@ -287,7 +300,7 @@ async function loadAll(){
     onValue(ref(db,U+'/'+cur),(snap)=>{const v=snap.val();if(v){data[cur]=v;if(page==='nutrition')rN();if(page==='workout')rW()}});
   }catch(e){ss('er')}
 }
-window.showPage=function(name,btn){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));document.getElementById('page-'+name).classList.add('active');btn.classList.add('active');page=name;if(name==='analytics')rA();if(name==='settings')rS()}
+window.showPage=function(name,btn){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));document.getElementById('page-'+name).classList.add('active');btn.classList.add('active');page=name;if(name==='analytics')rA();if(name==='settings')rS();if(name==='meals')rMealPlan()}
 window.changeDay=function(d){const dt=new Date(cur+'T12:00:00');dt.setDate(dt.getDate()+d);cur=dt.toISOString().split('T')[0];rN();rW()}
 function fmtD(ds){const d=new Date(ds+'T12:00:00'),t=today(),y=new Date(Date.now()-86400000).toISOString().split('T')[0];return ds===t?'Today':ds===y?'Yesterday':d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})}
 function tots(d){const day=gd(d);let c=0,p=0,cb=0,f=0,m=0;for(const meals of Object.values(day.meals||{})){if(meals.length)m++;for(const i of meals){c+=i.cal||0;p+=i.pro||0;cb+=i.carbs||0;f+=i.fat||0}}return{cal:c,pro:p,carbs:cb,fat:f,meals:m}}
@@ -335,6 +348,126 @@ window.requestNotifs=async function(){if(!('Notification' in window)){toast('Not
 function startRems(){if(Notification.permission!=='granted')return;setInterval(()=>{const now=new Date(),h=now.getHours(),m=now.getMinutes();REM.forEach(r=>{if(sett['rem_'+r.id]&&h===r.h&&m===r.m)new Notification('Muscle & Burn 🔥',{body:r.desc})})},60000)}
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();dInst=e;document.getElementById('installBanner').style.display='flex'});
 window.installApp=async function(){if(!dInst)return;dInst.prompt();const{outcome}=await dInst.userChoice;if(outcome==='accepted'){toast('App installed! 🎉');document.getElementById('installBanner').style.display='none'}dInst=null};
+// ── MEAL PLAN ──
+const MEAL_PLAN={
+  training:[
+    {slot:'Breakfast',time:'7–8 AM',color:'#FF6B35',name:'Besan Chilla + Greek Yogurt',items:'3 besan chillas with ginger & green chilli · 200g full-fat Greek yogurt · 1 tbsp chia seeds · 1 glass milk',cal:600,pro:38,carb:55,
+     ingredients:[{qty:'1 cup',item:'besan (chickpea flour)'},{qty:'½ tsp',item:'cumin seeds'},{qty:'½ tsp',item:'turmeric powder'},{qty:'½ tsp',item:'red chilli powder'},{qty:'1 tsp',item:'grated ginger'},{qty:'1',item:'green chilli, finely chopped'},{qty:'2 tbsp',item:'chopped onion'},{qty:'Salt + water',item:'to make thin batter'},{qty:'1 tsp',item:'oil per chilla'},{qty:'200g',item:'full-fat Greek yogurt'},{qty:'1 tbsp',item:'chia seeds'},{qty:'1 glass',item:'milk'}],
+     steps:['Mix besan with cumin, turmeric, chilli powder, ginger, green chilli and onion.','Add water gradually and whisk until smooth and pourable like crepe batter.','Heat a non-stick pan on medium. Add a few drops of oil.','Pour a ladle of batter and spread in a circle.','Cook 2–3 min until edges lift. Drizzle oil on top, flip and cook 1–2 min until golden.','Serve with Greek yogurt, chia seeds stirred in, and a glass of milk.'],
+     tip:'Make the batter the night before and refrigerate — even quicker in the morning.'},
+    {slot:'Mid Morning',time:'10–11 AM',color:'#4ECDC4',name:'Paneer & Nut Snack',items:'100g raw paneer cubes · chaat masala · 20g mixed nuts · 1 banana',cal:480,pro:22,carb:35,
+     ingredients:[{qty:'100g',item:'raw paneer, cubed'},{qty:'½ tsp',item:'chaat masala'},{qty:'¼ tsp',item:'black pepper'},{qty:'½ tsp',item:'lemon juice'},{qty:'20g',item:'mixed nuts (almonds, walnuts)'},{qty:'1',item:'banana'}],
+     steps:['Cut paneer into bite-sized cubes.','Sprinkle chaat masala, black pepper and lemon juice over the cubes.','Toss gently to coat. No cooking needed — eat raw.','Serve with mixed nuts and a banana on the side.'],
+     tip:'Buy paneer blocks, cube them for the week and store in a box of water in the fridge.'},
+    {slot:'Lunch',time:'1–2 PM',color:'#A855F7',name:'Dal + Paneer Bhurji + Brown Rice',items:'1.5 cups moong/toor dal · 150g paneer bhurji · 1 cup brown rice · salad · 1 roti',cal:750,pro:48,carb:90,
+     ingredients:[{qty:'¾ cup',item:'moong or toor dal (dry)'},{qty:'150g',item:'paneer, crumbled'},{qty:'1 cup',item:'brown rice (dry)'},{qty:'1 tsp',item:'cumin seeds'},{qty:'1',item:'onion, finely chopped'},{qty:'2',item:'tomatoes, chopped'},{qty:'1 tsp',item:'turmeric'},{qty:'1 tsp',item:'coriander powder'},{qty:'½ tsp',item:'garam masala'},{qty:'Salt & oil',item:'to taste'}],
+     steps:['Rinse dal, pressure cook with 2.5 cups water, turmeric and salt for 3–4 whistles until soft.','Cook brown rice separately with 2 cups water for ~25 min until fluffy.','For paneer bhurji: heat oil, add cumin seeds until they splutter.','Add onion, sauté until golden. Add tomatoes, cook until mushy.','Add turmeric, coriander powder, salt. Crumble in paneer, cook 3–4 min. Finish with garam masala.','Serve dal, paneer bhurji and rice with fresh salad and a roti.'],
+     tip:'Batch cook dal and brown rice at the start of the week — reheat daily in minutes.'},
+    {slot:'Evening',time:'4–5 PM',color:'#F59E0B',name:'Spiced Roasted Soya Chunks',items:'60g dry soya chunks · cumin, chaat masala, turmeric, lemon · handful peanuts',cal:380,pro:30,carb:22,
+     ingredients:[{qty:'60g',item:'dry soya chunks'},{qty:'½ tsp',item:'cumin seeds'},{qty:'½ tsp',item:'turmeric'},{qty:'1 tsp',item:'chaat masala'},{qty:'½ tsp',item:'red chilli powder'},{qty:'1 tsp',item:'lemon juice'},{qty:'1 tsp',item:'oil'},{qty:'Salt',item:'to taste'},{qty:'30g',item:'peanuts (side)'}],
+     steps:['Soak soya chunks in hot water for 10 min until fully puffed up.','Drain and squeeze out all water firmly. Repeat 2–3 times.','Mix turmeric, chaat masala, chilli powder, salt, lemon juice and oil in a bowl.','Toss squeezed soya chunks in the spice mix until well coated.','Air fryer: 200°C for 10–12 min, shaking halfway. OR pan: dry roast on high heat 8–10 min, stirring often until slightly crispy.','Serve hot with roasted peanuts on the side.'],
+     tip:'Squeeze soya chunks very well after soaking — the drier they are, the crispier they roast.'},
+    {slot:'Dinner',time:'7–8 PM',color:'#10B981',name:'Rajma/Chole + Tofu + Roti',items:'1.5 cups rajma or chole · 150g tofu · 2 rotis · small bowl curd',cal:650,pro:42,carb:75,
+     ingredients:[{qty:'1.5 cups',item:'cooked rajma or chole (canned ok)'},{qty:'150g',item:'firm tofu, cubed'},{qty:'1',item:'onion, finely chopped'},{qty:'2',item:'tomatoes, blended'},{qty:'1 tsp',item:'cumin seeds'},{qty:'1 tsp',item:'turmeric'},{qty:'1 tsp',item:'coriander powder'},{qty:'1 tsp',item:'garam masala'},{qty:'2',item:'whole wheat rotis'},{qty:'Salt & oil',item:'to taste'}],
+     steps:['Heat oil, add cumin seeds. When they splutter, add onion and fry until golden brown.','Add blended tomatoes, turmeric, coriander powder and salt. Cook until oil separates (8–10 min).','Add cooked rajma/chole with a splash of water. Simmer 10 min on medium heat.','Stir in garam masala at the end.','For tofu: heat oil separately, add cumin and turmeric. Pan-fry tofu cubes until golden on all sides (5–6 min). Season with salt.','Warm rotis on a tawa 30 sec each side. Serve everything with a small bowl of curd.'],
+     tip:'Use canned rajma or chole on busy days — rinse well and add directly to masala. Halves the cook time.'}
+  ],
+  rest:[
+    {slot:'Breakfast',time:'7–8 AM',color:'#FF6B35',name:'Besan Chilla + Greek Yogurt',items:'2 besan chillas · 200g Greek yogurt · 1 tbsp chia seeds · 1 glass low-fat milk',cal:480,pro:33,carb:42,
+     ingredients:[{qty:'⅔ cup',item:'besan (chickpea flour)'},{qty:'½ tsp',item:'cumin, turmeric, chilli powder'},{qty:'1 tsp',item:'grated ginger'},{qty:'1',item:'green chilli, chopped'},{qty:'200g',item:'low-fat Greek yogurt'},{qty:'1 tbsp',item:'chia seeds'},{qty:'1 glass',item:'low-fat milk'}],
+     steps:['Make batter as usual but slightly thinner. Cook 2 chillas instead of 3.','Serve with Greek yogurt and chia seeds. Use low-fat milk to keep calories lower.'],
+     tip:'Rest day: 2 chillas instead of 3 to reduce calories while keeping protein high.'},
+    {slot:'Mid Morning',time:'10–11 AM',color:'#4ECDC4',name:'Paneer & Nut Snack (lighter)',items:'80g raw paneer · 15g almonds · 1 small apple',cal:320,pro:18,carb:22,
+     ingredients:[{qty:'80g',item:'raw paneer, cubed'},{qty:'½ tsp',item:'chaat masala + lemon juice'},{qty:'15g',item:'almonds'},{qty:'1 small',item:'apple'}],
+     steps:['Cube paneer, sprinkle chaat masala and lemon juice.','Eat with almonds and a small apple.'],
+     tip:'Slightly smaller portion on rest days — swap banana for a smaller apple.'},
+    {slot:'Lunch',time:'1–2 PM',color:'#A855F7',name:'Dal + Paneer Bhurji (no rice)',items:'1.5 cups moong dal · 130g paneer · 1 roti · large salad · 1 cup curd',cal:570,pro:42,carb:52,
+     ingredients:[{qty:'¾ cup',item:'moong dal (dry)'},{qty:'130g',item:'paneer, crumbled'},{qty:'1',item:'whole wheat roti'},{qty:'1 cup',item:'curd'},{qty:'Large',item:'salad (cucumber, tomato, onion)'}],
+     steps:['Cook dal as usual with turmeric and salt.','Make paneer bhurji with onion, tomato and spices.','Skip the brown rice today — replace with a large salad and curd.','Serve dal + bhurji + 1 roti + salad + curd.'],
+     tip:'Dropping rice on rest days is the easiest way to create a calorie deficit without feeling hungry.'},
+    {slot:'Evening',time:'4–5 PM',color:'#F59E0B',name:'Spiced Roasted Soya Chunks (lighter)',items:'40g dry soya chunks · spices · small handful peanuts',cal:260,pro:22,carb:15,
+     ingredients:[{qty:'40g',item:'dry soya chunks'},{qty:'½ tsp each',item:'turmeric, chaat masala, chilli powder'},{qty:'1 tsp',item:'lemon juice'},{qty:'½ tsp',item:'oil'},{qty:'20g',item:'peanuts'}],
+     steps:['Soak 40g soya chunks in hot water for 10 min, drain and squeeze very well.','Toss in spices, lemon and a tiny bit of oil.','Roast in air fryer at 200°C for 10 min or dry pan on high for 8 min.','Serve with a small handful of peanuts.'],
+     tip:'Smaller portion on rest days — 40g instead of 60g dry soya chunks.'},
+    {slot:'Dinner',time:'7–8 PM',color:'#10B981',name:'Chole + Tofu + 1 Roti',items:'1.5 cups chole · 130g tofu · 1 roti · green salad',cal:500,pro:37,carb:52,
+     ingredients:[{qty:'1.5 cups',item:'cooked chole (canned ok)'},{qty:'130g',item:'firm tofu, cubed'},{qty:'1',item:'whole wheat roti'},{qty:'Large',item:'green salad, no dressing'}],
+     steps:['Make chole masala as usual (onion, tomato, spices).','Pan-fry tofu separately with cumin and turmeric until golden.','Serve with 1 roti only (not 2) and a large plain green salad.','Skip the curd on rest day dinner to stay in deficit.'],
+     tip:'1 roti instead of 2 and no curd at dinner — simple swap, saves ~200 calories.'}
+  ]
+};
+
+let mealDayType='training';
+let openMealIdx=null;
+
+window.setMealDay=function(type,btn){
+  mealDayType=type;
+  document.querySelectorAll('#dayTypeTabs .ptb').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  openMealIdx=null;
+  rMealPlan();
+};
+
+function rMealPlan(){
+  const meals=MEAL_PLAN[mealDayType];
+  const totCal=meals.reduce((s,m)=>s+m.cal,0);
+  const totPro=meals.reduce((s,m)=>s+m.pro,0);
+  const c=document.getElementById('mealPlanSlots');
+  let html='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">'
+    +'<div class="sc"><div class="sl">Total Calories</div><div class="sv" style="color:var(--accent)">'+totCal+'</div></div>'
+    +'<div class="sc"><div class="sl">Total Protein</div><div class="sv" style="color:var(--green)">'+totPro+'g</div></div>'
+    +'</div>';
+  meals.forEach((m,i)=>{
+    const isOpen=openMealIdx===i;
+    html+='<div class="ms">'
+      +'<div class="mh" onclick="toggleMealCard('+i+')">'
+      +'<div class="md" style="background:'+m.color+'"></div>'
+      +'<div class="mn">'+m.slot+'</div>'
+      +'<div class="mt">'+m.time+'</div>'
+      +'<div class="msm">'+m.cal+' kcal · '+m.pro+'g pro</div>'
+      +'<div class="mc">'+(isOpen?'&#9650;':'&#9660;')+'</div>'
+      +'</div>';
+    if(isOpen){
+      html+='<div class="mb" style="display:block">'
+        +'<div style="padding:12px 15px;border-bottom:1px solid var(--border)">'
+        +'<div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">'+m.name+'</div>'
+        +'<div style="font-size:11px;color:var(--muted2);line-height:1.6">'+m.items+'</div>'
+        +'</div>'
+        // macros
+        +'<div style="display:flex;gap:10px;padding:10px 15px;border-bottom:1px solid var(--border)">'
+        +'<span style="font-size:11px;padding:3px 9px;border-radius:20px;background:#FF6B3522;color:var(--accent);font-weight:600">'+m.cal+' kcal</span>'
+        +'<span style="font-size:11px;padding:3px 9px;border-radius:20px;background:#10B98122;color:var(--green);font-weight:600">'+m.pro+'g protein</span>'
+        +'<span style="font-size:11px;padding:3px 9px;border-radius:20px;background:#F59E0B22;color:var(--amber);font-weight:600">'+m.carb+'g carbs</span>'
+        +'</div>'
+        // ingredients
+        +'<div style="padding:12px 15px;border-bottom:1px solid var(--border)">'
+        +'<div style="font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Ingredients</div>'
+        +m.ingredients.map(ing=>'<div style="display:flex;gap:8px;padding:4px 0;border-bottom:1px solid var(--border);font-size:12px">'
+          +'<span style="color:var(--text);font-weight:600;min-width:70px">'+ing.qty+'</span>'
+          +'<span style="color:var(--muted2)">'+ing.item+'</span>'
+          +'</div>').join('')
+        +'</div>'
+        // steps
+        +'<div style="padding:12px 15px;border-bottom:1px solid var(--border)">'
+        +'<div style="font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Method</div>'
+        +m.steps.map((s,si)=>'<div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;color:var(--muted2)">'
+          +'<span style="width:18px;height:18px;border-radius:50%;background:var(--card2);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;color:var(--muted2);flex-shrink:0">'+(si+1)+'</span>'
+          +'<span style="line-height:1.6">'+s+'</span>'
+          +'</div>').join('')
+        +'</div>'
+        // tip
+        +'<div style="margin:10px 15px 12px;padding:9px 13px;background:#1a1000;border-radius:10px;border:1px solid #2a1800;font-size:11px;color:var(--amber)"><strong>Tip:</strong> '+m.tip+'</div>'
+        +'</div>';
+    }
+    html+='</div>';
+  });
+  c.innerHTML=html;
+}
+
+window.toggleMealCard=function(i){
+  openMealIdx=(openMealIdx===i)?null:i;
+  rMealPlan();
+};
+
 let tT;window.toast=function(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(tT);tT=setTimeout(()=>el.classList.remove('show'),2400)};
 (async()=>{ss('sy');await loadAll();ss('ok');const ol=document.getElementById('lo');ol.style.opacity='0';setTimeout(()=>ol.style.display='none',400);rN();rW();startRems();if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{})})();
 </script>
