@@ -164,15 +164,37 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 <!-- WORKOUT -->
 <div id="page-workout" class="page">
   <div class="ph"><div class="hr"><div><div class="ey">Training</div><h1>Work<span>out</span></h1></div><div class="dn"><button onclick="changeDay(-1)">&#8249;</button><div class="dd" id="dd2"></div><button onclick="changeDay(1)">&#8250;</button></div></div></div>
+
+  <!-- PPL Plan Section -->
+  <div id="pplSection">
+    <div id="pplDayTabs" style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:14px;scrollbar-width:none"></div>
+    <div id="pplSessionHeader"></div>
+    <div id="pplExercises"></div>
+    <div style="margin-bottom:16px">
+      <div id="pplProgress" style="display:none">
+        <div style="background:var(--card);border-radius:12px;border:1px solid var(--border);padding:14px 16px;margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <span style="font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--muted)">Session Progress</span>
+            <span id="pplDoneCount" style="font-size:13px;font-weight:700;color:var(--teal)">0/0 done</span>
+          </div>
+          <div style="background:var(--border);border-radius:99px;height:6px;overflow:hidden">
+            <div id="pplProgressBar" style="height:100%;background:linear-gradient(90deg,var(--teal),var(--green));border-radius:99px;width:0%;transition:width .4s"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Your Logged Sets (existing functionality) -->
   <div id="wStatsWrap" style="display:none"><div class="ws"><div class="wst"><div class="wsv" id="wEx">0</div><div class="wsl">Exercises</div></div><div class="wst"><div class="wsv" id="wSets">0</div><div class="wsl">Sets</div></div><div class="wst"><div class="wsv" id="wVol">0</div><div class="wsl">kg Volume</div></div></div></div>
-  <div class="st">Exercises</div><div id="exerciseList"></div>
-  <div class="card"><div class="ct">Add Exercise</div>
+  <div class="st" id="loggedSetsLabel" style="display:none">Logged Sets</div><div id="exerciseList"></div>
+  <div class="card"><div class="ct">Log a Set</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
-      <div class="fg"><label>Name</label><input class="inf" id="exName" type="text" placeholder="Bench Press" style="width:150px"></div>
+      <div class="fg"><label>Exercise</label><input class="inf" id="exName" type="text" placeholder="Bench Press" style="width:150px"></div>
       <div class="fg"><label>Sets</label><input class="inf" id="exSets" type="number" placeholder="4" min="1" style="width:52px"></div>
       <div class="fg"><label>Reps</label><input class="inf" id="exReps" type="number" placeholder="10" min="1" style="width:52px"></div>
       <div class="fg"><label>Weight kg</label><input class="inf" id="exWeight" type="number" placeholder="60" min="0" step="0.5" style="width:70px"></div>
-      <button class="btn ba" onclick="addExercise()">+ Add</button>
+      <button class="btn ba" onclick="addExercise()">+ Log</button>
     </div>
   </div>
   <div class="st">Session Notes</div><div class="card"><textarea class="na" id="woNotes" placeholder="PRs? How did it feel?"></textarea></div>
@@ -287,7 +309,7 @@ let cur=today(),data={},sett={calTarget:CAL,proTarget:PRO,goalWeight:GW,startWei
 let gmFood=null,gmMealId=null;
 
 function today(){return new Date().toISOString().split('T')[0]}
-function gd(d){if(!data[d])data[d]={meals:{},water:0,notes:'',exercises:[],workoutNotes:''};return data[d]}
+function gd(d){if(!data[d])data[d]={meals:{},water:0,notes:'',exercises:[],workoutNotes:'',pplTicks:{}};if(!data[d].pplTicks)data[d].pplTicks={};return data[d]}
 function ss(s){const e=document.getElementById('syncStatus'),b=document.getElementById('sbi');if(s==='sy'){e.className='sy';e.textContent='⟳ Saving';b.style.width='60%';b.style.background='var(--amber)'}else if(s==='ok'){e.className='ok';e.textContent='✓ Synced';b.style.width='100%';b.style.background='var(--green)';setTimeout(()=>{b.style.width='0'},1200)}else{e.className='er';e.textContent='✕ Offline';b.style.width='100%';b.style.background='var(--red)'}}
 async function saveDay(d){ss('sy');try{await set(ref(db,U+'/'+d),gd(d));ss('ok')}catch(e){ss('er');toast('⚠️ Sync failed')}}
 function sched(d){clearTimeout(saveT);saveT=setTimeout(()=>saveDay(d),700)}
@@ -296,7 +318,7 @@ async function saveWts(){try{await set(ref(db,U+'/_weights'),wts)}catch(e){}}
 async function loadAll(){
   try{
     const snap=await get(ref(db,U));
-    if(snap.exists()){const v=snap.val();if(v._settings){Object.assign(sett,v._settings);delete v._settings}if(v._weights){wts=v._weights;delete v._weights}data=v;for(const d of Object.keys(data)){const x=data[d];if(!x.meals)x.meals={};if(!x.exercises)x.exercises=[];if(x.water===undefined)x.water=0;if(!x.notes)x.notes='';if(!x.workoutNotes)x.workoutNotes=''}}
+    if(snap.exists()){const v=snap.val();if(v._settings){Object.assign(sett,v._settings);delete v._settings}if(v._weights){wts=v._weights;delete v._weights}data=v;for(const d of Object.keys(data)){const x=data[d];if(!x.meals)x.meals={};if(!x.exercises)x.exercises=[];if(x.water===undefined)x.water=0;if(!x.notes)x.notes='';if(!x.workoutNotes)x.workoutNotes='';if(!x.pplTicks)x.pplTicks={}}}
     onValue(ref(db,U+'/'+cur),(snap)=>{const v=snap.val();if(v){data[cur]=v;if(page==='nutrition')rN();if(page==='workout')rW()}});
   }catch(e){ss('er')}
 }
@@ -462,7 +484,11 @@ function qA(mId,p){const day=gd(cur);if(!day.meals[mId])day.meals[mId]=[];day.me
 function rfM(mId){const items=gd(cur).meals[mId]||[],mCal=items.reduce((s,i)=>s+(i.cal||0),0),mPro=items.reduce((s,i)=>s+(i.pro||0),0),ms=document.getElementById('msm-'+mId);if(ms)ms.textContent=items.length?mCal+' kcal · '+mPro+'g':'';const fl=document.getElementById('fl-'+mId);if(fl)rFL(fl,mId,items)}
 function rWater(){const count=gd(cur).water||0;document.getElementById('wCount').textContent=count;const c=document.getElementById('wGlasses');c.innerHTML='';for(let i=0;i<10;i++){const b=document.createElement('button');b.className='gb'+(i<count?' filled':'');b.textContent=i<count?'💧':'○';b.onclick=()=>{gd(cur).water=(i<count)?i:i+1;sched(cur);rWater()};c.appendChild(b)}}
 function iNotes(){const ta=document.getElementById('notesArea');if(!ta)return;ta.value=gd(cur).notes||'';ta.oninput=()=>{gd(cur).notes=ta.value;sched(cur)}}
-function rW(){const el=document.getElementById('dd2');if(el)el.textContent=fmtD(cur);const day=gd(cur),exs=day.exercises||[],c=document.getElementById('exerciseList');c.innerHTML='';if(!exs.length){c.innerHTML='<div style="text-align:center;color:var(--muted);padding:24px;font-size:13px">No exercises yet<br><br>💪 Add below</div>'}else{exs.forEach((ex,ei)=>{const sets=ex.sets||[],vol=sets.reduce((s,st)=>s+(st.weight||0)*(st.reps||0),0);const card=document.createElement('div');card.className='ec';card.innerHTML='<div class="ech"><h4>'+ex.name+'</h4><div style="display:flex;gap:8px;align-items:center"><span style="font-size:11px;color:var(--muted2)">'+sets.length+' sets · '+vol+'kg</span><button style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:13px" onclick="delEx('+ei+')">🗑️</button></div></div><div class="chips" id="chips-'+ei+'"></div><div class="sform"><div class="fg"><label>Reps</label><input class="inf" id="sr-'+ei+'" type="number" placeholder="10" min="1" style="width:58px"></div><div class="fg"><label>Weight kg</label><input class="inf" id="sw-'+ei+'" type="number" placeholder="60" min="0" step="0.5" style="width:72px"></div><button class="btn ba" onclick="addSet('+ei+')">+ Set</button><button class="btn bm" onclick="sameSet('+ei+')">Same</button></div>';c.appendChild(card);const chipsEl=document.getElementById('chips-'+ei);sets.forEach((s,si)=>{const chip=document.createElement('div');chip.className='chip';chip.textContent='Set '+(si+1)+': '+s.reps+'×'+s.weight+'kg';chip.title='Click to remove';chip.onclick=()=>{exs[ei].sets.splice(si,1);sched(cur);rW()};chipsEl.appendChild(chip)})})}
+function rW(){const el=document.getElementById('dd2');if(el)el.textContent=fmtD(cur);
+// Auto-set PPL tab to today's day when viewing current date
+if(cur===today())activePplDay=getPplDayForDate(cur);
+rPPL();
+const day=gd(cur),exs=day.exercises||[],c=document.getElementById('exerciseList');c.innerHTML='';const logLbl=document.getElementById('loggedSetsLabel');if(logLbl)logLbl.style.display=exs.length?'block':'none';if(!exs.length){}else{exs.forEach((ex,ei)=>{const sets=ex.sets||[],vol=sets.reduce((s,st)=>s+(st.weight||0)*(st.reps||0),0);const card=document.createElement('div');card.className='ec';card.innerHTML='<div class="ech"><h4>'+ex.name+'</h4><div style="display:flex;gap:8px;align-items:center"><span style="font-size:11px;color:var(--muted2)">'+sets.length+' sets · '+vol+'kg</span><button style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:13px" onclick="delEx('+ei+')">🗑️</button></div></div><div class="chips" id="chips-'+ei+'"></div><div class="sform"><div class="fg"><label>Reps</label><input class="inf" id="sr-'+ei+'" type="number" placeholder="10" min="1" style="width:58px"></div><div class="fg"><label>Weight kg</label><input class="inf" id="sw-'+ei+'" type="number" placeholder="60" min="0" step="0.5" style="width:72px"></div><button class="btn ba" onclick="addSet('+ei+')">+ Set</button><button class="btn bm" onclick="sameSet('+ei+')">Same</button></div>';c.appendChild(card);const chipsEl=document.getElementById('chips-'+ei);sets.forEach((s,si)=>{const chip=document.createElement('div');chip.className='chip';chip.textContent='Set '+(si+1)+': '+s.reps+'×'+s.weight+'kg';chip.title='Click to remove';chip.onclick=()=>{exs[ei].sets.splice(si,1);sched(cur);rW()};chipsEl.appendChild(chip)})})}
 const sw=document.getElementById('wStatsWrap');if(exs.length){sw.style.display='block';const ts=exs.reduce((s,e)=>s+(e.sets||[]).length,0),tv=exs.reduce((s,e)=>(e.sets||[]).reduce((sv,st)=>sv+(st.weight||0)*(st.reps||0),0)+s,0);document.getElementById('wEx').textContent=exs.length;document.getElementById('wSets').textContent=ts;document.getElementById('wVol').textContent=tv}else sw.style.display='none';const wn=document.getElementById('woNotes');if(wn){wn.value=day.workoutNotes||'';wn.oninput=()=>{gd(cur).workoutNotes=wn.value;sched(cur)}}}
 window.addExercise=function(){const name=document.getElementById('exName').value.trim();if(!name){toast('Enter exercise name');return}const sets=+document.getElementById('exSets').value||0,reps=+document.getElementById('exReps').value||0,weight=+document.getElementById('exWeight').value||0;const day=gd(cur);if(!day.exercises)day.exercises=[];day.exercises.push({name,sets:Array.from({length:sets},()=>({reps,weight}))});['exName','exSets','exReps','exWeight'].forEach(id=>{const e=document.getElementById(id);if(e)e.value=''});sched(cur);rW();toast('Added: '+name)};
 window.addSet=function(ei){const reps=+document.getElementById('sr-'+ei).value||0,weight=+document.getElementById('sw-'+ei).value||0;if(!reps){toast('Enter reps');return}gd(cur).exercises[ei].sets.push({reps,weight});sched(cur);rW()};
@@ -615,7 +641,177 @@ window.toggleMealCard=function(i){
   rMealPlan();
 };
 
-let tT;window.toast=function(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(tT);tT=setTimeout(()=>el.classList.remove('show'),2400)};
+let tT;window.toast=function(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(tT);tT=setTimeout(()=>el.classList.remove('show'),2400)}
+
+// ── PPL WORKOUT PLAN ──
+const PPL_PLAN=[
+  {day:'MON',label:'Monday',type:'PUSH',tag:'Chest · Shoulders · Triceps',accent:'#FF6B35',exercises:[
+    {name:'Barbell Bench Press',sets:4,reps:'6–8',rest:'3 min',note:'Control descent 3s. Arch naturally, drive feet into floor.'},
+    {name:'Incline DB Press',sets:3,reps:'8–10',rest:'90s',note:'30–45° incline. Elbows slightly tucked.'},
+    {name:'Cable Chest Fly',sets:3,reps:'12–15',rest:'60s',note:'Full stretch at bottom. Slow negative.'},
+    {name:'Overhead Press',sets:4,reps:'6–8',rest:'2 min',note:'Brace core hard. Bar path slightly back at top.'},
+    {name:'Lateral Raises',sets:4,reps:'12–15',rest:'60s',note:'Lead with elbows. 4s down. Go lighter than ego wants.'},
+    {name:'Cable Tricep Pushdown',sets:3,reps:'12–15',rest:'60s',note:'Elbows pinned. Full lockout each rep.'},
+    {name:'Overhead Tricep Extension',sets:3,reps:'10–12',rest:'60s',note:'Full ROM. Stretches long head under load.'},
+  ]},
+  {day:'TUE',label:'Tuesday',type:'PULL',tag:'Back · Biceps · Rear Delts',accent:'#4ECDC4',exercises:[
+    {name:'Deadlift (Conv. or RDL)',sets:4,reps:'5–6',rest:'3 min',note:'Bar scrapes shins. Reset fully each rep.'},
+    {name:'Lat Pulldown (Wide Grip)',sets:4,reps:'8–10',rest:'2 min',note:'Lean back slightly. Pull bar to upper chest. Lead with elbows, not hands.'},
+    {name:'Barbell / DB Row',sets:4,reps:'8–10',rest:'90s',note:'Torso ~45°. Drive elbows back and squeeze hard.'},
+    {name:'Seated Cable Row',sets:3,reps:'10–12',rest:'90s',note:'Full stretch forward. Upright torso on pull.'},
+    {name:'Face Pulls',sets:3,reps:'15–20',rest:'60s',note:'Non-negotiable for shoulder health. High rope, pull to forehead.'},
+    {name:'Barbell Curl',sets:3,reps:'8–10',rest:'60s',note:'No swinging. Full supination at peak.'},
+    {name:'Hammer Curl',sets:3,reps:'10–12',rest:'60s',note:'Neutral grip. Hits brachialis for arm thickness.'},
+  ]},
+  {day:'WED',label:'Wednesday',type:'LEGS',tag:'Quads · Hamstrings · Glutes · Calves',accent:'#A855F7',exercises:[
+    {name:'Back Squat',sets:4,reps:'5–8',rest:'3 min',note:'Break parallel. Knees track toes. Brace before descent.'},
+    {name:'Romanian Deadlift',sets:3,reps:'8–10',rest:'2 min',note:'Push hips back. Feel the stretch. No rounding.'},
+    {name:'Leg Press',sets:3,reps:'10–12',rest:'90s',note:"High feet = glutes, low feet = quads. Don't lockout knees."},
+    {name:'Walking Lunges',sets:3,reps:'12/leg',rest:'90s',note:'Long step. Front shin stays vertical.'},
+    {name:'Leg Curl (Lying)',sets:3,reps:'12–15',rest:'60s',note:'Pause 1s at peak contraction.'},
+    {name:'Leg Extension',sets:3,reps:'12–15',rest:'60s',note:'Toes slightly inward hits VMO harder.'},
+    {name:'Standing Calf Raise',sets:4,reps:'15–20',rest:'60s',note:'Full stretch at bottom. 1s pause at top.'},
+  ]},
+  {day:'THU',label:'Thursday',type:'PUSH',tag:'Shoulders · Upper Chest · Triceps',accent:'#FF6B35',exercises:[
+    {name:'DB Shoulder Press',sets:4,reps:'8–10',rest:'2 min',note:'Shoulder-focused session today. Control both ways.'},
+    {name:'Arnold Press',sets:3,reps:'10–12',rest:'90s',note:'Rotate from neutral to pronated. Go slow.'},
+    {name:'Cable Lateral Raise',sets:4,reps:'12–15',rest:'60s',note:'Cable keeps tension at bottom unlike dumbbells.'},
+    {name:'Flat DB Press',sets:3,reps:'10–12',rest:'90s',note:'Greater ROM than barbell. Touch DBs at bottom.'},
+    {name:'Pec Dec / Cable Crossover',sets:3,reps:'12–15',rest:'60s',note:'Squeeze hard in middle for 1s.'},
+    {name:'Skull Crushers (EZ Bar)',sets:3,reps:'10–12',rest:'90s',note:"Lower slow. Elbows stay fixed, don't flare."},
+    {name:'Cable Tricep Kickback',sets:3,reps:'12–15',rest:'60s',note:'Full lockout. Best for tricep peak contraction.'},
+  ]},
+  {day:'FRI',label:'Friday',type:'PULL',tag:'Back Width · Biceps · Rear Delts',accent:'#4ECDC4',exercises:[
+    {name:'Neutral Grip Lat Pulldown',sets:4,reps:'8–10',rest:'2 min',note:'Palms facing each other. Neutral grip reduces elbow stress and lets you go heavier.'},
+    {name:'Single-Arm DB Row',sets:4,reps:'10–12/side',rest:'90s',note:'Allow slight torso rotation at top. Row to hip.'},
+    {name:'Chest-Supported Row',sets:3,reps:'10–12',rest:'90s',note:'Eliminates lower back fatigue. Full isolation.'},
+    {name:'Straight-Arm Pulldown',sets:3,reps:'12–15',rest:'60s',note:'Keep arms nearly straight. Think lat spread.'},
+    {name:'Reverse Pec Dec',sets:3,reps:'15–20',rest:'60s',note:'Light weight, high reps. Feel the squeeze.'},
+    {name:'Incline DB Curl',sets:3,reps:'10–12',rest:'60s',note:'Stretched position. Kills the long head.'},
+    {name:'Cable Rope Curl',sets:3,reps:'12–15',rest:'60s',note:'Supinate at peak. Hold 1s.'},
+  ]},
+  {day:'SAT',label:'Saturday',type:'LEGS',tag:'Posterior Chain · Glutes · Calves',accent:'#A855F7',exercises:[
+    {name:'Hack Squat / Front Squat',sets:4,reps:'8–10',rest:'2 min',note:'Upright torso. Quad-dominant variation.'},
+    {name:'Hip Thrust / Sumo Deadlift',sets:4,reps:'8–10',rest:'2 min',note:'Hip thrust = #1 glute builder. Drive hips high, squeeze hard.'},
+    {name:'Bulgarian Split Squat',sets:3,reps:'10/leg',rest:'90s',note:'Brutal. Worth it. Long step for glute focus.'},
+    {name:'Seated Leg Curl',sets:4,reps:'10–12',rest:'60s',note:'Seated = more stretch on hamstrings than lying.'},
+    {name:'Adductor Machine',sets:3,reps:'15–20',rest:'60s',note:'Often skipped. Important for knee and hip stability.'},
+    {name:'Seated Calf Raise',sets:4,reps:'15–20',rest:'60s',note:'Targets deeper soleus muscle. Full range.'},
+    {name:'Tibialis Raise',sets:3,reps:'15–20',rest:'60s',note:'Injury prevention. Balances calf strength.'},
+  ]},
+  {day:'SUN',label:'Sunday',type:'REST',tag:'Recovery Day',accent:'#666',exercises:[]},
+];
+
+let activePplDay=0;
+
+function getPplDayForDate(dateStr){
+  const d=new Date(dateStr+'T12:00:00');
+  const dow=d.getDay();
+  const map=[6,0,1,2,3,4,5]; // Sun=6,Mon=0,...Sat=5
+  return map[dow];
+}
+
+function rPPL(){
+  rPPLTabs();
+  rPPLSession();
+}
+
+function rPPLTabs(){
+  const c=document.getElementById('pplDayTabs');
+  if(!c)return;
+  c.innerHTML='';
+  PPL_PLAN.forEach((d,i)=>{
+    const btn=document.createElement('button');
+    const isActive=i===activePplDay;
+    btn.style.cssText='flex:none;padding:6px 14px;border-radius:20px;border:1.5px solid '+(isActive?d.accent:d.accent+'44')+';background:'+(isActive?d.accent+'22':'transparent')+';color:'+(isActive?d.accent:'var(--muted2)')+';font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;white-space:nowrap';
+    btn.innerHTML=d.day+'<span style="font-size:9px;display:block;letter-spacing:1px;opacity:.8">'+d.type+'</span>';
+    btn.onclick=()=>{activePplDay=i;rPPL()};
+    c.appendChild(btn);
+  });
+}
+
+function rPPLSession(){
+  const plan=PPL_PLAN[activePplDay];
+  const hdr=document.getElementById('pplSessionHeader');
+  const exEl=document.getElementById('pplExercises');
+  const prog=document.getElementById('pplProgress');
+  if(!hdr||!exEl||!prog)return;
+
+  if(plan.type==='REST'){
+    hdr.innerHTML='<div class="card" style="text-align:center;padding:24px;margin-bottom:14px"><div style="font-size:32px;margin-bottom:8px">😴</div><div style="font-size:15px;font-weight:700;margin-bottom:4px">Rest Day</div><div style="font-size:12px;color:var(--muted2)">Sleep. Eat. Recover. Repeat.</div></div>';
+    exEl.innerHTML='';
+    prog.style.display='none';
+    return;
+  }
+
+  hdr.innerHTML='<div style="background:var(--card);border-radius:14px;border:1px solid var(--border);padding:14px 16px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between">'
+    +'<div><div style="font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:4px">'+plan.type+' DAY · '+plan.label.toUpperCase()+'</div>'
+    +'<div style="font-size:16px;font-weight:700;color:var(--text)">'+plan.tag+'</div>'
+    +'<div style="font-size:10px;color:var(--muted2);margin-top:2px">'+plan.exercises.length+' exercises · 65–75 min</div></div>'
+    +'<div style="width:10px;height:10px;border-radius:50%;background:'+plan.accent+';flex-shrink:0"></div>'
+    +'</div>';
+
+  const tickKey=cur+'_'+activePplDay;
+  const dayData=gd(cur);
+  if(!dayData.pplTicks)dayData.pplTicks={};
+  const ticks=dayData.pplTicks[tickKey]||{};
+  const doneCount=Object.values(ticks).filter(Boolean).length;
+  const total=plan.exercises.length;
+
+  prog.style.display='block';
+  document.getElementById('pplDoneCount').textContent=doneCount+'/'+total+' done';
+  document.getElementById('pplProgressBar').style.width=(total?Math.round(doneCount/total*100):0)+'%';
+
+  exEl.innerHTML='';
+  plan.exercises.forEach((ex,ei)=>{
+    const done=ticks[ei]||false;
+    const card=document.createElement('div');
+    card.style.cssText='background:var(--card);border-radius:14px;border:1px solid '+(done?plan.accent+'88':'var(--border)')+';padding:14px 16px;margin-bottom:8px;display:flex;align-items:flex-start;gap:14px;transition:all .2s;'+(done?'opacity:.7':'');
+
+    const tickBtn=document.createElement('button');
+    tickBtn.style.cssText='flex-shrink:0;width:28px;height:28px;border-radius:50%;border:2px solid '+(done?plan.accent:plan.accent+'66')+';background:'+(done?plan.accent:'transparent')+';cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;color:#000;transition:all .2s;margin-top:2px';
+    tickBtn.textContent=done?'✓':'';
+    tickBtn.onclick=()=>togglePplTick(tickKey,ei);
+
+    const content=document.createElement('div');
+    content.style.cssText='flex:1;min-width:0';
+    content.innerHTML='<div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap">'
+      +'<div style="font-size:13px;font-weight:600;color:'+(done?'var(--muted2)':'var(--text)')+(done?';text-decoration:line-through':'')+'">'+(ei+1)+'. '+ex.name+'</div>'
+      +'<div style="font-size:12px;font-weight:700;color:'+plan.accent+';white-space:nowrap">'+ex.sets+' × '+ex.reps+'</div>'
+      +'</div>'
+      +'<div style="font-size:10px;color:var(--muted);margin-top:4px;line-height:1.5">Rest '+ex.rest+' &nbsp;·&nbsp; <em>'+ex.note+'</em></div>'
+      +'<button onclick="quickLogEx(\''+ex.name.replace(/'/g,"\\'")+'\','+ex.sets+')" style="margin-top:8px;background:'+plan.accent+'18;border:1px solid '+plan.accent+'44;color:'+plan.accent+';font-size:10px;padding:4px 10px;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:600">+ Log Sets</button>';
+
+    card.appendChild(tickBtn);
+    card.appendChild(content);
+    exEl.appendChild(card);
+  });
+}
+
+window.togglePplTick=function(tickKey,ei){
+  const dayData=gd(cur);
+  if(!dayData.pplTicks)dayData.pplTicks={};
+  if(!dayData.pplTicks[tickKey])dayData.pplTicks[tickKey]={};
+  dayData.pplTicks[tickKey][ei]=!dayData.pplTicks[tickKey][ei];
+  sched(cur);
+  rPPLSession();
+  const plan=PPL_PLAN[activePplDay];
+  const ticks=dayData.pplTicks[tickKey]||{};
+  const done=Object.values(ticks).filter(Boolean).length;
+  if(done===plan.exercises.length&&plan.exercises.length>0)toast('🎉 Session complete! Great work!');
+};
+
+window.quickLogEx=function(name,sets){
+  const exNameEl=document.getElementById('exName');
+  const exSetsEl=document.getElementById('exSets');
+  const exRepsEl=document.getElementById('exReps');
+  if(exNameEl)exNameEl.value=name;
+  if(exSetsEl)exSetsEl.value=sets;
+  if(exRepsEl)exRepsEl.focus();
+  const loggedLabel=document.getElementById('loggedSetsLabel');
+  if(loggedLabel)loggedLabel.scrollIntoView({behavior:'smooth',block:'start'});
+  toast('Fill in reps & weight, then tap Log');
+};;
 (async()=>{ss('sy');await loadAll();ss('ok');const ol=document.getElementById('lo');ol.style.opacity='0';setTimeout(()=>ol.style.display='none',400);rN();rW();startRems();if('serviceWorker' in navigator){
   navigator.serviceWorker.register('sw.js').then(reg=>{
     // Force new SW to activate immediately, replacing old v3
