@@ -1,4 +1,4 @@
-const CACHE = 'mb-v6';
+const CACHE = 'mb-v7';
 
 const PRECACHE = [
   './',
@@ -8,20 +8,24 @@ const PRECACHE = [
   'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js'
 ];
 
+// Install: cache new files AND skip waiting immediately — no delay
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE).then(c => c.addAll(PRECACHE)).catch(() => {})
   );
-  self.skipWaiting();
+  self.skipWaiting(); // activate immediately, don't wait for old SW to die
 });
 
+// Activate: delete ALL old caches, then take control of all pages NOW
 self.addEventListener('activate', e => {
   e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
-    )
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => {
+        console.log('[SW] Deleting old cache:', k);
+        return caches.delete(k);
+      })))
+      .then(() => self.clients.claim()) // take over all open tabs immediately
   );
-  self.clients.claim();
 });
 
 self.addEventListener('fetch', e => {
@@ -29,8 +33,9 @@ self.addEventListener('fetch', e => {
   if (url.includes('firebasedatabase') || url.includes('firebaseio') ||
       url.includes('googleapis.com/identitytoolkit') ||
       url.includes('openfoodfacts') || url.includes('firebaseapp.com') ||
-      url.includes('api.anthropic.com')) {
-    return;
+      url.includes('api.anthropic.com') ||
+      url.includes('generativelanguage.googleapis.com')) {
+    return; // never intercept API calls
   }
   if (e.request.method === 'GET') {
     e.respondWith(
@@ -50,32 +55,23 @@ self.addEventListener('fetch', e => {
 });
 
 let scheduledTimers = [];
-
-function clearAllTimers() {
-  scheduledTimers.forEach(t => clearTimeout(t));
-  scheduledTimers = [];
-}
+function clearAllTimers() { scheduledTimers.forEach(t => clearTimeout(t)); scheduledTimers = []; }
 
 function scheduleReminders(reminders) {
   clearAllTimers();
   reminders.forEach(r => {
-    const now = new Date();
-    const fire = new Date();
+    const now = new Date(), fire = new Date();
     fire.setHours(r.h, r.m, 0, 0);
     if (fire <= now) fire.setDate(fire.getDate() + 1);
-    const delay = fire.getTime() - now.getTime();
     const t = setTimeout(() => {
       self.registration.showNotification('Muscle & Burn 🔥', {
         body: r.label + ' — ' + r.desc,
         icon: 'https://via.placeholder.com/192x192/FF6B35/000000?text=M%26B',
         badge: 'https://via.placeholder.com/96x96/FF6B35/000000?text=M%26B',
-        tag: 'mb-' + r.id,
-        renotify: true,
-        vibrate: [200, 100, 200],
-        data: { url: './' }
+        tag: 'mb-' + r.id, renotify: true, vibrate: [200, 100, 200], data: { url: './' }
       });
       scheduleReminders([r]);
-    }, delay);
+    }, fire.getTime() - now.getTime());
     scheduledTimers.push(t);
   });
 }
@@ -90,9 +86,7 @@ self.addEventListener('notificationclick', e => {
   e.notification.close();
   e.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
-      for (const client of list) {
-        if ('focus' in client) return client.focus();
-      }
+      for (const client of list) { if ('focus' in client) return client.focus(); }
       return clients.openWindow('./');
     })
   );
