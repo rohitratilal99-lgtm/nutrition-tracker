@@ -974,6 +974,8 @@ document.getElementById('scanFileInput').addEventListener('change',async functio
   document.getElementById('scanLoading').style.display='block';
   document.getElementById('scanResult').style.display='none';
 
+  const mimeType='image/jpeg';
+
   // ── Compress image before sending (iPhone photos are 3-5MB, too large) ──
   const compressedB64=await new Promise((res,rej)=>{
     const img=new Image();
