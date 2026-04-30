@@ -974,8 +974,25 @@ document.getElementById('scanFileInput').addEventListener('change',async functio
   document.getElementById('scanLoading').style.display='block';
   document.getElementById('scanResult').style.display='none';
 
-  const b64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(',')[1]);r.onerror=rej;r.readAsDataURL(file)});
-  const mimeType=file.type||'image/jpeg';
+  // ── Compress image before sending (iPhone photos are 3-5MB, too large) ──
+  const compressedB64=await new Promise((res,rej)=>{
+    const img=new Image();
+    img.onload=()=>{
+      const MAX=800;
+      let w=img.width,h=img.height;
+      if(w>h&&w>MAX){h=Math.round(h*MAX/w);w=MAX;}
+      else if(h>MAX){w=Math.round(w*MAX/h);h=MAX;}
+      const canvas=document.createElement('canvas');
+      canvas.width=w;canvas.height=h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      res(canvas.toDataURL('image/jpeg',0.7).split(',')[1]);
+    };
+    img.onerror=rej;
+    const fr=new FileReader();
+    fr.onload=e=>img.src=e.target.result;
+    fr.onerror=rej;
+    fr.readAsDataURL(file);
+  });
 
   try{
     const response=await fetch(
@@ -983,19 +1000,51 @@ document.getElementById('scanFileInput').addEventListener('change',async functio
       {method:'POST',headers:{'Content-Type':'application/json'},
        body:JSON.stringify({
          contents:[{parts:[
-           {inline_data:{mime_type:mimeType,data:b64}},
+           {inline_data:{mime_type:mimeType,data:compressedB64}},
            {text:'You are a nutritionist. Analyse this meal photo and estimate total nutritional content for everything visible. Respond ONLY with raw JSON, no markdown, no explanation: {"name":"meal name max 40 chars","description":"brief description with estimated portion size","calories":number,"protein":number,"carbs":number,"fat":number}'}
          ]}],
          generationConfig:{temperature:0.1,maxOutputTokens:300}
        })
       }
     );
-    if(!response.ok)throw new Error(response.status===400?'invalid_key':'api_error');
+
     const result=await response.json();
+
+    // Show actual API error in UI so we can debug
+    if(!response.ok){
+      const errMsg=result?.error?.message||'Unknown error ('+response.status+')';
+      document.getElementById('scanLoading').style.display='none';
+      document.getElementById('scanResult').style.display='block';
+      document.getElementById('scanFoodName').textContent='⚠️ API Error';
+      document.getElementById('scanCal').textContent='—';
+      document.getElementById('scanPro').textContent='—';
+      document.getElementById('scanCarbs').textContent='—';
+      document.getElementById('scanFat').textContent='—';
+      document.getElementById('scanDesc').textContent=errMsg;
+      return;
+    }
+
     const text=result.candidates?.[0]?.content?.parts?.[0]?.text||'{}';
     let parsed;
-    try{parsed=JSON.parse(text.replace(/```json|```/g,'').trim())}catch(e){throw new Error('parse_error')}
-    scanData={name:parsed.name||'Scanned Meal',cal:Math.round(parsed.calories||0),pro:Math.round(parsed.protein||0),carbs:Math.round(parsed.carbs||0),fat:Math.round(parsed.fat||0),desc:parsed.description||''};
+    try{parsed=JSON.parse(text.replace(/```json|```/g,'').trim())}
+    catch(e){
+      // Gemini returned text but not valid JSON — try to extract numbers
+      parsed={
+        name:'Scanned Meal',
+        description:text.slice(0,100),
+        calories:0,protein:0,carbs:0,fat:0
+      };
+    }
+
+    scanData={
+      name:parsed.name||'Scanned Meal',
+      cal:Math.round(parsed.calories||0),
+      pro:Math.round(parsed.protein||0),
+      carbs:Math.round(parsed.carbs||0),
+      fat:Math.round(parsed.fat||0),
+      desc:parsed.description||''
+    };
+
     document.getElementById('scanLoading').style.display='none';
     document.getElementById('scanFoodName').textContent=scanData.name;
     document.getElementById('scanCal').textContent=scanData.cal;
@@ -1004,11 +1053,17 @@ document.getElementById('scanFileInput').addEventListener('change',async functio
     document.getElementById('scanFat').textContent=scanData.fat+'g';
     document.getElementById('scanDesc').textContent=scanData.desc;
     document.getElementById('scanResult').style.display='block';
+
   }catch(err){
     document.getElementById('scanLoading').style.display='none';
-    if(err.message==='invalid_key'){toast('⚠️ Invalid API key — check Settings');localStorage.removeItem('mb_gemini_key');}
-    else if(err.message==='parse_error'){toast('⚠️ Try a clearer photo');}
-    else{toast('⚠️ Scan failed — check connection');}
+    // Show network/unknown error directly in the modal
+    document.getElementById('scanResult').style.display='block';
+    document.getElementById('scanFoodName').textContent='⚠️ Failed';
+    document.getElementById('scanCal').textContent='—';
+    document.getElementById('scanPro').textContent='—';
+    document.getElementById('scanCarbs').textContent='—';
+    document.getElementById('scanFat').textContent='—';
+    document.getElementById('scanDesc').textContent='Error: '+err.message+'. Check your API key in Settings.';
   }
 });
 
