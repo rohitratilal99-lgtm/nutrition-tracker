@@ -1,4 +1,4 @@
-const CACHE = 'mb-v5';
+const CACHE = 'mb-v6';
 
 const PRECACHE = [
   './',
@@ -28,7 +28,8 @@ self.addEventListener('fetch', e => {
   const url = e.request.url;
   if (url.includes('firebasedatabase') || url.includes('firebaseio') ||
       url.includes('googleapis.com/identitytoolkit') ||
-      url.includes('openfoodfacts') || url.includes('firebaseapp.com')) {
+      url.includes('openfoodfacts') || url.includes('firebaseapp.com') ||
+      url.includes('api.anthropic.com')) {
     return;
   }
   if (e.request.method === 'GET') {
@@ -80,12 +81,9 @@ function scheduleReminders(reminders) {
 }
 
 self.addEventListener('message', e => {
-  if (e.data && e.data.type === 'SCHEDULE_REMINDERS') {
-    scheduleReminders(e.data.reminders);
-  }
-  if (e.data && e.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
+  if (!e.data) return;
+  if (e.data.type === 'SCHEDULE_REMINDERS') scheduleReminders(e.data.reminders);
+  if (e.data.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
 self.addEventListener('notificationclick', e => {
